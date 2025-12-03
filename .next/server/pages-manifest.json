@@ -3,6 +3,6 @@
   "/_error": "pages/_error.js",
   "/_document": "pages/_document.js",
   "/": "pages/index.js",
-  "/recommended": "pages/recommended.js",
-  "/my-tasks-and-habits": "pages/my-tasks-and-habits.js"
+  "/my-tasks-and-habits": "pages/my-tasks-and-habits.js",
+  "/recommended": "pages/recommended.js"
 }
