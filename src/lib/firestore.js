@@ -1,7 +1,7 @@
-import { collection, addDoc, getDocs, deleteDoc, doc, query, where } from "firebase/firestore";
+import { collection, addDoc, getDocs, deleteDoc, doc, query, where, updateDoc } from "firebase/firestore";
 import { db } from "./firebase";
 
-// Get habits for a specific user from the main 'habits' collection
+// Get habits for a specific user
 export const getHabits = async (userId) => {
   if (!userId) return [];
   try {
@@ -15,13 +15,15 @@ export const getHabits = async (userId) => {
   }
 };
 
-// Add a new habit for a specific user, including the userId field
+// Add a new habit with a specific goal
 export const addHabit = async (userId, habit) => {
   if (!userId) return;
   try {
     await addDoc(collection(db, "habits"), {
-      ...habit,
-      userId: userId, // Add the userId to the habit document
+      userId: userId,
+      name: habit.name,
+      goal: habit.goal || 1, // Default goal to 1 if not provided
+      progress: 0, // Always start progress at 0
     });
   } catch (error) {
     console.error("Error adding habit: ", error);
@@ -29,7 +31,18 @@ export const addHabit = async (userId, habit) => {
   }
 };
 
-// Delete a habit by its document ID
+// Update an existing habit's progress
+export const updateHabit = async (habitId, newProgress) => {
+  try {
+    const habitDoc = doc(db, "habits", habitId);
+    await updateDoc(habitDoc, { progress: newProgress });
+  } catch (error) {
+    console.error("Error updating habit: ", error);
+    throw error;
+  }
+};
+
+// Delete a habit
 export const deleteHabit = async (habitId) => {
   try {
     const habitDoc = doc(db, "habits", habitId);

@@ -6,66 +6,63 @@ Este documento descreve a arquitetura, funcionalidades e plano de desenvolviment
 
 ---
 
-## Seção 1: Arquitetura e Design (Versão Atual)
+## Seção 1: Arquitetura e Design (Versão Anterior)
 
-A versão atual do aplicativo estabeleceu a base da interface do usuário (UI) e corrigiu uma inconsistência estrutural crítica (mistura dos frameworks Vite e Next.js). O projeto agora está unificado sob o Next.js com o App Router.
+A versão anterior do aplicativo estabeleceu a base da interface do usuário (UI), corrigiu uma inconsistência estrutural (mistura dos frameworks Vite e Next.js), e implementou a autenticação de usuários com Firebase.
 
-### 1.1. Estrutura do Projeto (Pós-Limpeza)
+### 1.1. Estrutura do Projeto
 - **Framework:** Next.js com App Router (`src/app`).
 - **Ponto de Entrada:** `src/app/page.jsx` (página de login).
 - **Roteamento:**
     - `/`: Página de Login
     - `/signup`: Página de Cadastro
     - `/main`: Página Principal (protegida)
-- **Componentes:** Componentes de UI reutilizáveis localizados em `src/components/ui`, construídos com `shadcn/ui`.
-- **Estilização:** Tailwind CSS com um arquivo `globals.css` central.
+- **Componentes:** Componentes de UI reutilizáveis em `src/components/ui`, construídos com `shadcn/ui`.
+- **Estilização:** Tailwind CSS.
 
-### 1.2. Design e Estilo
-- **Biblioteca de Componentes:** `shadcn/ui` foi escolhido por sua flexibilidade, acessibilidade e integração com Tailwind CSS.
-- **Tema:** Um tema limpo e moderno foi estabelecido em `globals.css`, com variáveis para modo claro e escuro.
-- **Tipografia:** A fonte "Inter" é usada para garantir uma boa legibilidade.
-- **Layout:** Os layouts são responsivos, utilizando Flexbox para centralizar conteúdo nas páginas de autenticação e um layout de painel para a página principal.
-
-### 1.3. Funcionalidades Implementadas (Somente UI)
-- **Página de Login:** Um formulário com campos para email e senha.
-- **Página de Cadastro:** Um formulário similar para a criação de novas contas.
-- **Página Principal:** Um layout de painel com um cabeçalho, título, botão de "Logout" e uma área de conteúdo preparada para exibir a lista de hábitos. A navegação entre as páginas é feita com o `useRouter` do Next.js.
+### 1.2. Funcionalidades Implementadas
+- **Autenticação:** Cadastro, login e logout de usuários com Firebase Authentication.
+- **Rotas Protegidas:** A página `/main` é acessível apenas para usuários autenticados.
 
 ---
 
 ## Seção 2: Plano de Implementação da Funcionalidade (Atual)
 
-**Objetivo:** Conectar a interface de usuário de autenticação ao Firebase para permitir que os usuários criem contas e façam login de verdade.
+**Objetivo:** Redesenhar a página principal (`/main`) para transformá-la em uma tela de hábitos moderna e funcional, baseada no design fornecido pelo usuário.
 
-### 2.1. Integração com Firebase
-- **Ferramentas:** Firebase SDK para a Web.
-- **Serviços a Utilizar:**
-    1.  **Firebase Authentication:** Para gerenciar o login e cadastro de usuários de forma segura.
-    2.  **Cloud Firestore:** Como banco de dados NoSQL para armazenar informações dos usuários e seus respectivos hábitos (será configurado após a autenticação funcionar).
+### 2.1. Análise do Design
+A nova interface será composta pelos seguintes elementos:
+- **Cabeçalho:** Saudação ao usuário, um ícone de calendário, um sino de notificação e um avatar.
+- **Abas de Navegação:** Abas para "Hoje" e "Clubes".
+- **Seletor de Data:** Uma lista horizontal para navegar pelos dias da semana.
+- **Cartão de Progresso:** Um cartão que exibe o progresso das metas diárias (ex: "1 de 4 completadas").
+- **Seção de Desafios:** Uma área para destacar desafios em andamento (ex: "Melhores Corredores").
+- **Seção de Hábitos:** A lista principal de hábitos a serem rastreados. Cada hábito terá:
+    - Ícone e nome (ex: "Beber água").
+    - Indicador de progresso (ex: "500/2000 ML").
+    - Avatares de amigos participando.
+    - Um botão de ação para registrar o progresso.
+- **Barra de Navegação Inferior:** Uma barra de navegação fixa com ícones para as seções principais do aplicativo e um botão de ação central proeminente.
 
 ### 2.2. Passos Detalhados da Implementação
 
-1.  **Configurar o Firebase no Projeto:**
-    -   Verificar o login do usuário no Firebase.
-    -   Verificar se há um projeto Firebase ativo ou criar um novo.
-    -   Inicializar os serviços do Firebase (`Authentication`, `Firestore`) no projeto usando as ferramentas disponíveis, o que irá configurar `firebase.json` e as regras de segurança.
+1.  **Instalar Biblioteca de Ícones:**
+    -   Instalar `lucide-react` para ter acesso a um conjunto de ícones modernos e consistentes.
 
-2.  **Implementar a Lógica de Cadastro (`/signup`):**
-    -   Capturar os dados (email e senha) do formulário de cadastro.
-    -   Utilizar a função `createUserWithEmailAndPassword` do SDK do Firebase para criar um novo usuário.
-    -   Após o cadastro bem-sucedido, redirecionar o usuário para a página principal (`/main`).
-    -   Exibir mensagens de erro caso o email já esteja em uso ou a senha seja inválida.
+2.  **Estruturar a Página Principal (`/main`):**
+    -   Modificar `src/app/main/page.jsx` para criar o layout principal da nova tela, organizando as seções (Cabeçalho, Progresso, Hábitos, etc.).
+    -   Utilizar componentes `shadcn/ui` (`Card`, `Button`, etc.) como base para os novos elementos.
 
-3.  **Implementar a Lógica de Login (`/`):**
-    -   Capturar os dados (email e senha) do formulário de login.
-    -   Utilizar a função `signInWithEmailAndPassword` do SDK do Firebase para autenticar o usuário.
-    -   Após o login bem-sucedido, redirecionar o usuário para a página principal (`/main`).
-    -   Exibir mensagens de erro para credenciais incorretas.
+3.  **Implementar o Cabeçalho:**
+    -   Criar a saudação ao usuário e adicionar os ícones.
 
-4.  **Implementar a Lógica de Logout:**
-    -   No botão "Logout" na página principal (`/main`), chamar a função `signOut` do Firebase.
-    -   Redirecionar o usuário de volta para a página de login (`/`).
+4.  **Implementar as Seções de Progresso e Hábitos:**
+    -   Criar os cartões de progresso e desafios.
+    -   Desenvolver a lista de hábitos, estilizando cada item para corresponder ao design.
 
-5.  **Proteger a Rota Principal (`/main`):**
-    -   Criar um mecanismo (`ProtectedRoute.jsx` ou um hook `useAuth`) que verifique o estado de autenticação do usuário.
-    -   Se o usuário não estiver logado, ele será automaticamente redirecionado da página `/main` para a página de login.
+5.  **Implementar a Barra de Navegação Inferior:**
+    -   Criar um componente de layout que inclua a barra de navegação na parte inferior da tela, garantindo que ela seja fixa e responsiva.
+
+6.  **Estilização e Polimento:**
+    -   Aplicar o esquema de cores (predominantemente azul e branco), a tipografia e o espaçamento do design de referência usando Tailwind CSS.
+    -   Garantir que o layout seja totalmente responsivo e se adapte bem a telas de dispositivos móveis.
