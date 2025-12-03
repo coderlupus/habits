@@ -4,20 +4,20 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { app } from '@/lib/firebase';
-import { getHabits, addHabit, deleteHabit, updateHabit } from '@/lib/firestore'; // Import Firestore functions
+import { getHabits, addHabit, deleteHabit, updateHabit } from '@/lib/firestore';
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Bell, Calendar, Home, Plus, Settings, User, Droplet, Footprints, Leaf, Trash2 } from 'lucide-react';
+import { Plus, User, Droplet, Footprints, Leaf, Trash2 } from 'lucide-react';
 
-// A map to assign icons to habits based on name keywords
 const habitIcons = {
   water: <Droplet className="w-6 h-6 text-blue-500" />,
   walk: <Footprints className="w-6 h-6 text-orange-500" />,
   run: <Footprints className="w-6 h-6 text-orange-500" />,
   plant: <Leaf className="w-6 h-6 text-green-500" />,
-  read: <Droplet className="w-6 h-6 text-purple-500" />, // Placeholder icon
+  read: <Droplet className="w-6 h-6 text-purple-500" />, 
   default: <Droplet className="w-6 h-6 text-gray-500" />
 };
 
@@ -45,6 +45,7 @@ export default function MainPage() {
   const [user, setUser] = useState(null);
   const [habits, setHabits] = useState([]);
   const [newHabit, setNewHabit] = useState('');
+  const [newHabitGoal, setNewHabitGoal] = useState('1');
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
   const [auth, setAuth] = useState(null);
@@ -56,9 +57,7 @@ export default function MainPage() {
     const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        // Fetch habits from Firestore
-        const userHabits = await getHabits(currentUser.uid);
-        setHabits(userHabits);
+        await fetchHabits(currentUser.uid);
       } else {
         router.push('/');
       }
@@ -77,18 +76,21 @@ export default function MainPage() {
     }
   };
 
-  const fetchHabits = async () => {
-      if (!user) return;
-      const userHabits = await getHabits(user.uid);
-      setHabits(userHabits);
-  }
+  const fetchHabits = async (uid) => {
+    if (!uid) return;
+    const userHabits = await getHabits(uid);
+    setHabits(userHabits);
+  };
 
   const handleAddHabit = async () => {
     if (newHabit.trim() === '' || !user) return;
     try {
-      await addHabit(user.uid, { name: newHabit }); 
+      const goal = parseInt(newHabitGoal, 10);
+      await addHabit(user.uid, { name: newHabit, goal: isNaN(goal) || goal < 1 ? 1 : goal });
+
       setNewHabit('');
-      await fetchHabits();
+      setNewHabitGoal('1');
+      await fetchHabits(user.uid);
       setIsDialogOpen(false);
     } catch (error) {
       console.error('Error adding habit:', error);
@@ -98,61 +100,52 @@ export default function MainPage() {
   const handleDeleteHabit = async (habitId) => {
     try {
       await deleteHabit(habitId);
-      await fetchHabits();
+      await fetchHabits(user.uid);
     } catch (error) {
       console.error('Error deleting habit:', error);
     }
   };
 
   const handleProgressUpdate = async (habit) => {
-      const newProgress = (habit.progress || 0) + 1;
-      try {
-          await updateHabit(habit.id, newProgress);
-          await fetchHabits();
-      } catch (error) {
-          console.error('Error updating progress:', error);
-      }
-  }
+    const newProgress = (habit.progress || 0) + 1;
+    if (newProgress > habit.goal) return;
+
+    try {
+      await updateHabit(habit.id, newProgress);
+      await fetchHabits(user.uid);
+    } catch (error) {
+      console.error('Error updating progress:', error);
+    }
+  };
 
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
-          <p>Loading...</p>
+        <p>Loading...</p>
       </div>
     );
   }
 
+  const completedHabits = habits.filter(h => h.progress >= h.goal).length;
+  const totalHabits = habits.length;
+  const dailyProgressPercentage = totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : 0;
+
   return (
     <div className="bg-gray-50 min-h-screen font-sans relative pb-28">
       <div className="container mx-auto px-4 pt-6">
-        {/* Header... */}
         <header className="flex justify-between items-center mb-6">
-          <div className="flex items-center space-x-3">
-             <div className="w-12 h-12 bg-gray-200 rounded-lg flex items-center justify-center">
-                <Calendar className="w-6 h-6 text-gray-700" />
-            </div>
             <div>
-                <h1 className="text-xl font-bold text-gray-900">Hi, {user.displayName || user.email.split('@')[0]} &#128075;</h1>
-                <p className="text-sm text-gray-500">Let's make habits together!</p>
+              <h1 className="text-xl font-bold text-gray-900">Hi, {user.displayName || user.email.split('@')[0]} &#128075;</h1>
+              <p className="text-sm text-gray-500">Let's make habits together!</p>
             </div>
-          </div>
           <div className="flex items-center space-x-4">
-            <div className="relative">
-                <Bell className="w-6 h-6 text-gray-600" />
-                <span className="absolute top-0 right-0 w-2 h-2 bg-red-500 rounded-full"></span>
-            </div>
             <div className="w-10 h-10 bg-yellow-300 rounded-full flex items-center justify-center text-2xl p-1">&#128579;</div>
+            <button onClick={handleLogout} className="p-2 text-gray-500 rounded-full active:bg-gray-200">
+                <User className="w-6 h-6" />
+            </button>
           </div>
         </header>
 
-        {/* Toggles and Date Selector... */}
-        <div className="flex bg-gray-100 rounded-full p-1 mb-6 border border-gray-200">
-          <button className="flex-1 bg-white shadow-sm text-gray-800 rounded-full py-2 text-sm font-semibold">Today</button>
-          <button className="flex-1 text-gray-500 rounded-full py-2 text-sm font-semibold flex items-center justify-center space-x-2">
-            <span>Clubs</span>
-            <span className="bg-blue-500 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">2</span>
-          </button>
-        </div>
         <div className="flex justify-between items-center mb-6 space-x-2 overflow-x-auto pb-2">
             {dates.map((d, index) => (
                 <div key={index} className={`flex-shrink-0 flex flex-col items-center justify-center w-14 h-20 rounded-2xl ${d.active ? 'bg-white shadow-md' : ''}`}>
@@ -162,15 +155,22 @@ export default function MainPage() {
             ))}
         </div>
 
-        {/* Daily Goals and Challenges... */}
         <Card className="bg-blue-600 text-white p-5 rounded-2xl mb-6 shadow-lg shadow-blue-500/20">
-          {/* ... content ... */}
+            <div className="flex items-center">
+                <div className="relative w-12 h-12 mr-4">
+                    <svg className="w-full h-full" viewBox="0 0 36 36">
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255, 255, 255, 0.3)" strokeWidth="4" />
+                        <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#ffffff" strokeWidth="4" strokeDasharray={`${dailyProgressPercentage}, 100`} />
+                    </svg>
+                    <p className="absolute inset-0 flex items-center justify-center text-xs font-bold">{dailyProgressPercentage}%</p>
+                </div>
+                <div>
+                    <h2 className="font-bold text-base">Your daily goals almost done! &#128293;</h2>
+                    <p className="text-sm opacity-80">{completedHabits} of {totalHabits} completed</p>
+                </div>
+            </div>
         </Card>
-        <div className="mb-6">
-          {/* ... content ... */}
-        </div>
 
-        {/* Habits */}
         <div>
           <div className="flex justify-between items-center mb-3">
             <h3 className="font-bold text-lg text-gray-900">Habits</h3>
@@ -187,7 +187,7 @@ export default function MainPage() {
                     <p className="font-semibold text-gray-800">{habit.name}</p>
                     <p className="text-sm text-gray-500">{`${habit.progress || 0} / ${habit.goal || 1} times`}</p>
                   </div>
-                  <button onClick={() => handleProgressUpdate(habit)} className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center active:bg-gray-200 mr-2">
+                  <button onClick={() => handleProgressUpdate(habit)} className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center active:bg-gray-200 mr-2 disabled:opacity-50" disabled={habit.progress >= habit.goal}>
                     <Plus className="w-6 h-6" />
                   </button>
                   <button onClick={() => handleDeleteHabit(habit.id)} className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center active:bg-red-200">
@@ -203,40 +203,33 @@ export default function MainPage() {
         </div>
       </div>
 
-      {/* Bottom Navigation and Dialog */}
-      <footer className="fixed bottom-0 left-0 right-0 bg-white/80 backdrop-blur-sm shadow-t p-2 flex justify-around items-center rounded-t-3xl border-t border-gray-100 m-2">
-        <button className="p-3 text-blue-600 rounded-full active:bg-gray-100"><Home className="w-7 h-7" /></button>
-        <button className="p-3 text-gray-400 rounded-full active:bg-gray-100"><Settings className="w-7 h-7" /></button>
-        
+      <footer className="fixed bottom-0 left-0 right-0 bg-transparent flex justify-center items-center p-4" style={{paddingBottom: 'env(safe-area-inset-bottom)'}}>
         <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
           <DialogTrigger asChild>
-            <button className="bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center -mt-10 shadow-lg shadow-blue-500/50 active:bg-blue-700">
+            <button className="bg-blue-600 text-white rounded-full w-16 h-16 flex items-center justify-center shadow-lg shadow-blue-500/50 active:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2">
               <Plus className="w-9 h-9" />
             </button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Add a new habit</DialogTitle>
-              <DialogDescription>
-                What's a new habit you want to build?
-              </DialogDescription>
+              <DialogDescription>What's a new habit you want to build?</DialogDescription>
             </DialogHeader>
             <div className="grid gap-4 py-4">
-              <Input
-                placeholder="e.g., Drink 2L of water"
-                value={newHabit}
-                onChange={(e) => setNewHabit(e.target.value)}
-                onKeyPress={(e) => e.key === 'Enter' && handleAddHabit()}
-              />
+                <div>
+                    <Label htmlFor="habit-name">Name</Label>
+                    <Input id="habit-name" placeholder="e.g., Drink 2L of water" value={newHabit} onChange={(e) => setNewHabit(e.target.value)} />
+                </div>
+                <div>
+                    <Label htmlFor="habit-goal">Goal (times per day)</Label>
+                    <Input id="habit-goal" type="number" min="1" value={newHabitGoal} onChange={(e) => setNewHabitGoal(e.target.value)} onKeyPress={(e) => e.key === 'Enter' && handleAddHabit()} />
+                </div>
             </div>
             <DialogFooter>
               <Button onClick={handleAddHabit}>Add Habit</Button>
             </DialogFooter>
           </DialogContent>
         </Dialog>
-        
-        <button className="p-3 text-gray-400 rounded-full active:bg-gray-100"><Bell className="w-7 h-7" /></button>
-        <button onClick={handleLogout} className="p-3 text-gray-400 rounded-full active:bg-gray-100"><User className="w-7 h-7" /></button>
       </footer>
     </div>
   );
