@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, createUserWithEmailAndPassword } from 'firebase/auth';
-import { app } from '@/lib/firebase'; // Import 'app' instead of 'auth'
+import { app } from '@/firebase'; // Corrected import path
 import { Button } from '@/components/ui/button';
 import {
   Card,

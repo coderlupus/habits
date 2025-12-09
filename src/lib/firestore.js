@@ -1,54 +1,32 @@
-import { collection, addDoc, getDocs, deleteDoc, doc, query, where, updateDoc } from "firebase/firestore";
-import { db } from "./firebase";
+import { collection, addDoc, getDocs, updateDoc, doc, deleteDoc } from "firebase/firestore";
+import { db } from "@/firebase"; // Assuming you have a firebase config file
 
-// Get habits for a specific user
+// Function to get habits for a specific user
 export const getHabits = async (userId) => {
   if (!userId) return [];
-  try {
-    const habitsRef = collection(db, "habits");
-    const q = query(habitsRef, where("userId", "==", userId));
-    const querySnapshot = await getDocs(q);
-    return querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  } catch (error) {
-    console.error("Error getting habits:", error);
-    throw error;
-  }
+  const habitsCollection = collection(db, `users/${userId}/habits`);
+  const habitsSnapshot = await getDocs(habitsCollection);
+  const habitsList = habitsSnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+  return habitsList;
 };
 
-// Add a new habit with a specific goal
-export const addHabit = async (userId, habit) => {
-  if (!userId) return;
-  try {
-    await addDoc(collection(db, "habits"), {
-      userId: userId,
-      name: habit.name,
-      goal: habit.goal || 1, // Default goal to 1 if not provided
-      progress: 0, // Always start progress at 0
-    });
-  } catch (error) {
-    console.error("Error adding habit: ", error);
-    throw error;
-  }
+// Function to add a new habit
+export const addHabit = async (userId, habitData) => {
+  if (!userId) throw new Error("User not authenticated");
+  const habitsCollection = collection(db, `users/${userId}/habits`);
+  await addDoc(habitsCollection, habitData);
 };
 
-// Update an existing habit's progress
-export const updateHabit = async (habitId, newProgress) => {
-  try {
-    const habitDoc = doc(db, "habits", habitId);
-    await updateDoc(habitDoc, { progress: newProgress });
-  } catch (error) {
-    console.error("Error updating habit: ", error);
-    throw error;
-  }
+// Function to update a habit
+export const updateHabit = async (userId, habitId, updatedData) => {
+  if (!userId) throw new Error("User not authenticated");
+  const habitDoc = doc(db, `users/${userId}/habits`, habitId);
+  await updateDoc(habitDoc, updatedData);
 };
 
-// Delete a habit
-export const deleteHabit = async (habitId) => {
-  try {
-    const habitDoc = doc(db, "habits", habitId);
-    await deleteDoc(habitDoc);
-  } catch (error) {
-    console.error("Error deleting habit: ", error);
-    throw error;
-  }
+// Function to delete a habit
+export const deleteHabit = async (userId, habitId) => {
+  if (!userId) throw new Error("User not authenticated");
+  const habitDoc = doc(db, `users/${userId}/habits`, habitId);
+  await deleteDoc(habitDoc);
 };
