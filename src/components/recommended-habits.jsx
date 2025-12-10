@@ -1,9 +1,7 @@
-'use client';
-
 import { recommendedHabits } from '@/data/recommended-habits';
 import { Card } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { BookOpen, GlassWater, Footprints, BrainCircuit, Plus } from 'lucide-react';
+import { BookOpen, GlassWater, Footprints, BrainCircuit } from 'lucide-react';
+import AddRecommendedButton from './add-recommended-button';
 
 const iconComponents = {
   BookOpen,
@@ -29,14 +27,7 @@ const RecommendedHabits = ({ onAddHabit }) => {
                   <p className="font-semibold text-gray-800">{habit.name}</p>
                 </div>
               </div>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center active:bg-blue-200"
-                onClick={() => onAddHabit(habit.name)}
-              >
-                <Plus className="w-5 h-5" />
-              </Button>
+              <AddRecommendedButton habitName={habit.name} onAddHabit={onAddHabit} />
             </Card>
           );
         })}
