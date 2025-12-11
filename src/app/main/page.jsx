@@ -1,49 +1,30 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense, useTransition } from 'react';
 import { useRouter } from 'next/navigation';
 import { getAuth, onAuthStateChanged, signOut } from 'firebase/auth';
 import { app } from '@/firebase';
-import { getHabits, addHabit, deleteHabit, updateHabit } from '@/lib/firestore';
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, User, Droplet, Footprints, Leaf, Trash2, Pencil, Target } from 'lucide-react';
+import { Plus, User, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import RecommendedHabits from '@/components/recommended-habits';
-
-const habitIcons = {
-  water: <Droplet className="w-6 h-6 text-blue-500" />,
-  walk: <Footprints className="w-6 h-6 text-orange-500" />,
-  run: <Footprints className="w-6 h-6 text-orange-500" />,
-  plant: <Leaf className="w-6 h-6 text-green-500" />,
-  read: <Droplet className="w-6 h-6 text-purple-500" />,
-  default: <Droplet className="w-6 h-6 text-gray-500" />
-};
-
-const getHabitIcon = (name) => {
-    const lowerCaseName = name.toLowerCase();
-    for (const key in habitIcons) {
-        if (lowerCaseName.includes(key)) {
-            return habitIcons[key];
-        }
-    }
-    return habitIcons.default;
-};
+import { addHabitAction } from '../actions';
+import HabitListServer from './habit-list-server';
+import HabitListSkeleton from './habit-list-skeleton';
 
 export default function MainPage() {
   const [user, setUser] = useState(null);
-  const [habits, setHabits] = useState([]);
   const [newHabit, setNewHabit] = useState('');
   const [newHabitGoal, setNewHabitGoal] = useState('1');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
-  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [editingHabit, setEditingHabit] = useState(null);
+  const [isAdding, setIsAdding] = useState(false);
   const [dates, setDates] = useState([]);
   const router = useRouter();
   const [auth, setAuth] = useState(null);
+  const [isPending, startTransition] = useTransition();
 
   useEffect(() => {
     const authInstance = getAuth(app);
@@ -52,13 +33,11 @@ export default function MainPage() {
     const unsubscribe = onAuthStateChanged(authInstance, async (currentUser) => {
       if (currentUser) {
         setUser(currentUser);
-        await fetchHabits(currentUser.uid);
       } else {
         router.push('/');
       }
     });
 
-    // Dynamic Calendar
     const getWeekDates = () => {
       const today = new Date();
       const weekDates = [];
@@ -98,76 +77,28 @@ export default function MainPage() {
     }
   };
 
-  const fetchHabits = async (uid) => {
-    if (!uid) return;
-    const userHabits = await getHabits(uid);
-    setHabits(userHabits);
-  };
-
   const handleAddHabit = async (habitName) => {
     const name = habitName || newHabit;
     if (name.trim() === '' || !user) return;
-    try {
-      const goal = parseInt(newHabitGoal, 10);
-      await addHabit(user.uid, { name, goal: isNaN(goal) || goal < 1 ? 1 : goal });
-      toast.success(`Habit '${name}' added!`);
-      setNewHabit('');
-      setNewHabitGoal('1');
-      await fetchHabits(user.uid);
-      setIsAddDialogOpen(false);
-    } catch (error) {
-      console.error('Error adding habit:', error);
-      toast.error('Failed to add habit.');
-    }
-  };
 
-  const handleEditHabit = (habit) => {
-    setEditingHabit(habit);
-    setIsEditDialogOpen(true);
-  };
+    setIsAdding(true);
+    startTransition(async () => {
+        const formData = new FormData();
+        formData.append('name', name);
+        formData.append('goal', newHabitGoal);
 
-  const handleUpdateHabit = async () => {
-    if (!editingHabit || !user) return;
+        const result = await addHabitAction(user.uid, formData);
 
-    try {
-      await updateHabit(user.uid, editingHabit.id, { name: editingHabit.name, goal: editingHabit.goal });
-      toast.success(`Habit '${editingHabit.name}' updated!`);
-      await fetchHabits(user.uid);
-      setIsEditDialogOpen(false);
-      setEditingHabit(null);
-    } catch (error) {
-      console.error('Error updating habit:', error);
-      toast.error('Failed to update habit.');
-    }
-  };
-
-  const handleDeleteHabit = async (habitId, habitName) => {
-    if (!user) return;
-    try {
-      await deleteHabit(user.uid, habitId);
-      toast.success(`Habit '${habitName}' deleted!`);
-      await fetchHabits(user.uid);
-    } catch (error) {
-      console.error('Error deleting habit:', error);
-      toast.error('Failed to delete habit.');
-    }
-  };
-
-  const handleProgressUpdate = async (habit) => {
-    if (!user) return;
-    const newProgress = (habit.progress || 0) + 1;
-    if (newProgress > habit.goal) return;
-
-    try {
-      await updateHabit(user.uid, habit.id, { progress: newProgress });
-      if (newProgress === habit.goal) {
-        toast.success(`Congratulations! You\'ve completed the '${habit.name}' habit for today!`);
-      }
-      await fetchHabits(user.uid);
-    } catch (error) {
-      console.error('Error updating progress:', error);
-      toast.error('Failed to update habit progress.');
-    }
+        if (result.success) {
+            toast.success(result.message);
+            setNewHabit('');
+            setNewHabitGoal('1');
+            setIsAddDialogOpen(false);
+        } else {
+            toast.error(result.error);
+        }
+        setIsAdding(false);
+    });
   };
 
   if (!user) {
@@ -177,10 +108,6 @@ export default function MainPage() {
       </div>
     );
   }
-
-  const completedHabits = habits.filter(h => h.progress >= h.goal).length;
-  const totalHabits = habits.length;
-  const dailyProgressPercentage = totalHabits > 0 ? Math.round((completedHabits / totalHabits) * 100) : 0;
 
   return (
     <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
@@ -208,62 +135,15 @@ export default function MainPage() {
               ))}
           </div>
 
-          <Card className="bg-blue-600 text-white p-5 rounded-2xl mb-6 shadow-lg shadow-blue-500/20">
-              <div className="flex items-center">
-                  <div className="relative w-12 h-12 mr-4">
-                      <svg className="w-full h-full" viewBox="0 0 36 36">
-                          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="rgba(255, 255, 255, 0.3)" strokeWidth="4" />
-                          <path d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831" fill="none" stroke="#ffffff" strokeWidth="4" strokeDasharray={`${dailyProgressPercentage}, 100`} />
-                      </svg>
-                      <p className="absolute inset-0 flex items-center justify-center text-xs font-bold">{dailyProgressPercentage}%</p>
-                  </div>
-                  <div>
-                      <h2 className="font-bold text-base">Your daily goals almost done! &#128293;</h2>
-                      <p className="text-sm opacity-80">{completedHabits} of {totalHabits} completed</p>
-                  </div>
-              </div>
-          </Card>
-
           <div>
             <div className="flex justify-between items-center mb-3">
               <h3 className="font-bold text-lg text-gray-900">Habits</h3>
               <a href="#" className="text-blue-600 text-sm font-semibold">VIEW ALL</a>
             </div>
-            <div className="space-y-3">
-              {habits.length > 0 ? (
-                habits.map((habit) => (
-                  <Card key={habit.id} className="p-4 rounded-2xl shadow-sm border border-gray-100">
-                    <div className="flex items-center">
-                      <div className="w-11 h-11 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
-                        {getHabitIcon(habit.name)}
-                      </div>
-                      <div className="flex-grow">
-                        <p className="font-semibold text-gray-800">{habit.name}</p>
-                        <p className="text-sm text-gray-500">{`${habit.progress || 0} / ${habit.goal || 1} times`}</p>
-                      </div>
-                      <button onClick={() => handleProgressUpdate(habit)} className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center active:bg-gray-200 mr-2 disabled:opacity-50" disabled={habit.progress >= habit.goal}>
-                        <Plus className="w-6 h-6" />
-                      </button>
-                      <button onClick={() => handleEditHabit(habit)} className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center active:bg-blue-200 mr-2">
-                        <Pencil className="w-5 h-5" />
-                      </button>
-                      <button onClick={() => handleDeleteHabit(habit.id, habit.name)} className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center active:bg-red-200">
-                        <Trash2 className="w-5 h-5" />
-                      </button>
-                    </div>
-                  </Card>
-                ))
-              ) : (
-                  <Card className="flex flex-col items-center justify-center p-10 mt-6 bg-gray-50 border-2 border-dashed border-gray-200">
-                      <Target className="w-12 h-12 text-gray-400 mb-4" />
-                      <h3 className="text-lg font-semibold text-gray-800">No Habits Yet</h3>
-                      <p className="text-sm text-gray-500 mb-6">Ready to build a better you? Start by adding your first habit.</p>
-                      <DialogTrigger asChild>
-                          <Button>Add a Habit</Button>
-                      </DialogTrigger>
-                  </Card>
-              )}
-            </div>
+
+            <Suspense fallback={<HabitListSkeleton />}>
+              <HabitListServer userId={user.uid} />
+            </Suspense>
 
             <RecommendedHabits onAddHabit={handleAddHabit} />
           </div>
@@ -292,45 +172,13 @@ export default function MainPage() {
                 </div>
             </div>
             <DialogFooter>
-              <Button onClick={() => handleAddHabit()}>Add Habit</Button>
+              <Button onClick={() => handleAddHabit()} disabled={isAdding || isPending}>
+                {(isAdding || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin text-gray-800" />}
+                {(isAdding || isPending) ? 'Adding...' : 'Add Habit'}
+              </Button>
             </DialogFooter>
           </DialogContent>
         </footer>
-
-        {/* Edit Habit Dialog */}
-        {editingHabit && (
-          <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Edit Habit</DialogTitle>
-                <DialogDescription>Make changes to your habit.</DialogDescription>
-              </DialogHeader>
-              <div className="grid gap-4 py-4">
-                <div>
-                  <Label htmlFor="edit-habit-name">Name</Label>
-                  <Input
-                    id="edit-habit-name"
-                    value={editingHabit.name}
-                    onChange={(e) => setEditingHabit({ ...editingHabit, name: e.target.value })}
-                  />
-                </div>
-                <div>
-                  <Label htmlFor="edit-habit-goal">Goal (times per day)</Label>
-                  <Input
-                    id="edit-habit-goal"
-                    type="number"
-                    min="1"
-                    value={editingHabit.goal}
-                    onChange={(e) => setEditingHabit({ ...editingHabit, goal: parseInt(e.target.value, 10) || 1 })}
-                  />
-                </div>
-              </div>
-              <DialogFooter>
-                <Button onClick={handleUpdateHabit}>Save Changes</Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
-        )}
       </div>
     </Dialog>
   );
