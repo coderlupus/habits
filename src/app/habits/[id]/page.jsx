@@ -1,5 +1,8 @@
+"use client";
+
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { getHabit } from '@/lib/firestore';
-import { getCurrentUser } from '@/lib/auth';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import Link from 'next/link';
@@ -16,6 +19,7 @@ const habitIcons = {
 };
 
 const getHabitIcon = (name) => {
+  if (!name) return habitIcons.default;
   const lowerCaseName = name.toLowerCase();
   for (const key in habitIcons) {
     if (lowerCaseName.includes(key)) {
@@ -25,28 +29,67 @@ const getHabitIcon = (name) => {
   return habitIcons.default;
 };
 
-export default async function HabitPage({ params }) {
+export default function HabitPage({ params }) {
   const { id } = params;
-  const user = await getCurrentUser();
+  const { currentUser } = useAuth();
+  const [habit, setHabit] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  if (!user || !user.id) {
+  useEffect(() => {
+    if (currentUser) {
+      getHabit(currentUser.uid, id)
+        .then(habitData => {
+          if (habitData) {
+            setHabit(habitData);
+          } else {
+            setError("Hábito não encontrado.");
+          }
+          setLoading(false);
+        })
+        .catch(err => {
+          console.error(err);
+          setError("Ocorreu um erro ao buscar o hábito.");
+          setLoading(false);
+        });
+    } else {
+      setLoading(false);
+    }
+  }, [currentUser, id]);
+
+  if (loading) {
+    return <div className="p-4">Carregando...</div>;
+  }
+
+  if (!currentUser) {
     return <div className="p-4">Usuário não autenticado.</div>;
   }
 
-  const habit = await getHabit(user.id, id);
-
-  if (!habit) {
+  if (error) {
     return (
         <div className="p-4">
-            <h1 className="text-xl font-bold">Hábito não encontrado.</h1>
+            <h1 className="text-xl font-bold">{error}</h1>
             <p className="text-sm text-gray-500 mt-4">Isso acontece porque o ID do usuário usado na busca não corresponde ao "dono" do hábito no banco de dados.</p>
             <div className="mt-2 p-2 bg-gray-100 rounded text-xs text-gray-700">
                 <p><strong>ID do Hábito (URL):</strong> {id}</p>
-                <p><strong>ID do Usuário (usado na busca):</strong> {user.id}</p>
+                <p><strong>ID do Usuário (usado na busca):</strong> {currentUser.uid}</p>
             </div>
-            <p className="text-sm text-gray-500 mt-2">Verifique o ID de usuário no seu Firebase Authentication e atualize o arquivo <code>src/lib/auth.js</code>.</p>
         </div>
     );
+  }
+  
+  if (!habit) {
+      return (
+        <div className="p-4">
+            <h1 className="text-xl font-bold">Hábito não encontrado.</h1>
+             <Link href="/main">
+                <Button variant="ghost" className="text-gray-600 hover:bg-gray-200 mt-4">
+                  <ArrowLeft className="mr-2 h-4 w-4" />
+                  Voltar para a lista
+                </Button>
+              </Link>
+        </div>
+      )
   }
 
   const progressPercentage = habit.goal > 0 ? (habit.progress / habit.goal) * 100 : 0;
