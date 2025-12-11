@@ -1,7 +1,7 @@
 'use server';
 
 import { revalidatePath } from 'next/cache';
-import { addHabit, updateHabit, deleteHabit, getHabit } from '@/lib/firestore';
+import { addHabit, updateHabit, deleteHabit, getHabit, getHabits } from '@/lib/firestore';
 import { getAuth } from 'firebase/auth';
 import { app } from '@/firebase';
 
@@ -19,6 +19,14 @@ export async function addHabitAction(userId, formData) {
 
     if (!habitName || !userId) {
       return { error: 'Habit name and user ID are required' };
+    }
+
+    // Check for duplicate habits
+    const existingHabits = await getHabits(userId);
+    const isDuplicate = existingHabits.some(habit => habit.name.toLowerCase() === habitName.toLowerCase());
+
+    if (isDuplicate) {
+      return { error: `A habit named '${habitName}' already exists.` };
     }
 
     const habitData = {
@@ -72,8 +80,9 @@ export async function updateHabitProgressAction(userId, habitId, currentProgress
     // Se completou o objetivo, adicionar ao histórico
     if (newProgress === goal) {
       const today = new Date().toISOString().split('T')[0];
-      updateData.history = await getHabitHistory(userId, habitId);
-      updateData.history.push({ date: today, completed: true });
+      const habit = await getHabit(userId, habitId); // Fetch habit to get history
+      const history = habit?.history || [];
+      updateData.history = [...history, { date: today, completed: true }];
     }
 
     await updateHabit(userId, habitId, updateData);
@@ -112,15 +121,5 @@ export async function updateHabitDetailsAction(userId, habitId, formData) {
   } catch (error) {
     console.error('Error updating habit:', error);
     return { error: 'Failed to update habit' };
-  }
-}
-
-async function getHabitHistory(userId, habitId) {
-  try {
-    const habit = await getHabit(habitId);
-    return habit?.history || [];
-  } catch (error) {
-    console.error('Error getting habit history:', error);
-    return [];
   }
 }
