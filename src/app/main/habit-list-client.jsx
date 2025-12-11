@@ -5,6 +5,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Plus, Trash2, Pencil, Droplet, Footprints, Leaf, Target, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import Link from 'next/link'; // Importando o Link
 import { 
   deleteHabitAction, 
   updateHabitProgressAction, 
@@ -39,7 +40,8 @@ export default function HabitListClient({ habits, userId }) {
   const [editingHabit, setEditingHabit] = useState(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
 
-  const handleProgressUpdate = (habit) => {
+  const handleProgressUpdate = (e, habit) => {
+    e.preventDefault(); // Impede a navegação
     setPendingAction({ action: 'progress', habitId: habit.id });
     startTransition(async () => {
       const result = await updateHabitProgressAction(
@@ -60,7 +62,8 @@ export default function HabitListClient({ habits, userId }) {
     });
   };
 
-  const handleDelete = (habitId, habitName) => {
+  const handleDelete = (e, habitId, habitName) => {
+    e.preventDefault(); // Impede a navegação
     setPendingAction({ action: 'delete', habitId });
     startTransition(async () => {
       const result = await deleteHabitAction(userId, habitId, habitName);
@@ -74,7 +77,8 @@ export default function HabitListClient({ habits, userId }) {
     });
   };
 
-  const handleEdit = (habit) => {
+  const handleEdit = (e, habit) => {
+    e.preventDefault(); // Impede a navegação
     setEditingHabit(habit);
     setIsEditDialogOpen(true);
   };
@@ -121,38 +125,40 @@ export default function HabitListClient({ habits, userId }) {
             const isAnyActionPending = isPending || pendingAction;
 
             return (
-              <Card key={habit.id} className="p-4 rounded-2xl shadow-sm border border-gray-100">
-                <div className="flex items-center">
-                  <div className="w-11 h-11 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
-                    {getHabitIcon(habit.name)}
+              <Link href={`/habits/${habit.id}`} key={habit.id} className="block">
+                <Card className="p-4 rounded-2xl shadow-sm border border-gray-100 hover:bg-gray-50 transition-colors">
+                  <div className="flex items-center">
+                    <div className="w-11 h-11 bg-gray-100 rounded-lg flex items-center justify-center mr-4">
+                      {getHabitIcon(habit.name)}
+                    </div>
+                    <div className="flex-grow">
+                      <p className="font-semibold text-gray-800">{habit.name}</p>
+                      <p className="text-sm text-gray-500">{`${habit.progress || 0} / ${habit.goal || 1} times`}</p>
+                    </div>
+                    <button 
+                      onClick={(e) => handleProgressUpdate(e, habit)} 
+                      className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center active:bg-gray-200 mr-2 disabled:opacity-50" 
+                      disabled={isAnyActionPending || habit.progress >= habit.goal}
+                    >
+                      {isUpdatingProgress ? <Loader2 className="w-6 h-6 animate-spin text-gray-800" /> : <Plus className="w-6 h-6" />}
+                    </button>
+                    <button 
+                      onClick={(e) => handleEdit(e, habit)} 
+                      className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center active:bg-blue-200 mr-2"
+                      disabled={isAnyActionPending}
+                    >
+                      <Pencil className="w-5 h-5" />
+                    </button>
+                    <button 
+                      onClick={(e) => handleDelete(e, habit.id, habit.name)} 
+                      className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center active:bg-red-200"
+                      disabled={isAnyActionPending}
+                    >
+                      {isDeleting ? <Loader2 className="w-5 h-5 animate-spin text-gray-800" /> : <Trash2 className="w-5 h-5" />}
+                    </button>
                   </div>
-                  <div className="flex-grow">
-                    <p className="font-semibold text-gray-800">{habit.name}</p>
-                    <p className="text-sm text-gray-500">{`${habit.progress || 0} / ${habit.goal || 1} times`}</p>
-                  </div>
-                  <button 
-                    onClick={() => handleProgressUpdate(habit)} 
-                    className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center active:bg-gray-200 mr-2 disabled:opacity-50" 
-                    disabled={isAnyActionPending || habit.progress >= habit.goal}
-                  >
-                    {isUpdatingProgress ? <Loader2 className="w-6 h-6 animate-spin text-gray-800" /> : <Plus className="w-6 h-6" />}
-                  </button>
-                  <button 
-                    onClick={() => handleEdit(habit)} 
-                    className="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center active:bg-blue-200 mr-2"
-                    disabled={isAnyActionPending}
-                  >
-                    <Pencil className="w-5 h-5" />
-                  </button>
-                  <button 
-                    onClick={() => handleDelete(habit.id, habit.name)} 
-                    className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center active:bg-red-200"
-                    disabled={isAnyActionPending}
-                  >
-                    {isDeleting ? <Loader2 className="w-5 h-5 animate-spin text-gray-800" /> : <Trash2 className="w-5 h-5" />}
-                  </button>
-                </div>
-              </Card>
+                </Card>
+              </Link>
             );
         })}
       </div>
