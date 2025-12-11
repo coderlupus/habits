@@ -173,7 +173,7 @@ export default function MainPage() {
             </div>
             <DialogFooter>
               <Button onClick={() => handleAddHabit()} disabled={isAdding || isPending}>
-                {(isAdding || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin text-white" />}
+                {(isAdding || isPending) && <Loader2 className="mr-2 h-4 w-4 animate-spin text-gray-800" />}
                 {(isAdding || isPending) ? 'Adding...' : 'Add Habit'}
               </Button>
             </DialogFooter>

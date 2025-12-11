@@ -135,7 +135,7 @@ export default function HabitListClient({ habits, userId }) {
                     className="w-10 h-10 bg-gray-100 text-gray-600 rounded-full flex items-center justify-center active:bg-gray-200 mr-2 disabled:opacity-50" 
                     disabled={isAnyActionPending || habit.progress >= habit.goal}
                   >
-                    {isUpdatingProgress ? <Loader2 className="w-6 h-6 animate-spin text-gray-600" /> : <Plus className="w-6 h-6" />}
+                    {isUpdatingProgress ? <Loader2 className="w-6 h-6 animate-spin text-gray-800" /> : <Plus className="w-6 h-6" />}
                   </button>
                   <button 
                     onClick={() => handleEdit(habit)} 
@@ -149,7 +149,7 @@ export default function HabitListClient({ habits, userId }) {
                     className="w-10 h-10 bg-red-100 text-red-600 rounded-full flex items-center justify-center active:bg-red-200"
                     disabled={isAnyActionPending}
                   >
-                    {isDeleting ? <Loader2 className="w-5 h-5 animate-spin text-red-600" /> : <Trash2 className="w-5 h-5" />}
+                    {isDeleting ? <Loader2 className="w-5 h-5 animate-spin text-gray-800" /> : <Trash2 className="w-5 h-5" />}
                   </button>
                 </div>
               </Card>
@@ -187,7 +187,7 @@ export default function HabitListClient({ habits, userId }) {
             </div>
             <DialogFooter>
               <Button onClick={handleUpdateHabit} disabled={isPending || pendingAction?.action === 'edit'}>
-                {(isPending || pendingAction) && pendingAction?.action === 'edit' && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                {(isPending || pendingAction) && pendingAction?.action === 'edit' && <Loader2 className="mr-2 h-4 w-4 animate-spin text-gray-800" />}
                 {(isPending || pendingAction) && pendingAction?.action === 'edit' ? 'Saving...' : 'Save Changes'}
               </Button>
             </DialogFooter>
